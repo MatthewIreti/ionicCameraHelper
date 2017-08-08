@@ -1,8 +1,8 @@
 /**
  * Created by Matthew on 6/22/2017.
  */
-var CameraHelper = function ($q, $cordovaCamera, $cordovaFile, $cordovaFileTransfer, $cordovaDevice, $cordovaActionSheet, Constants) {
-    var selectPictureType = function (type, q) {
+var CameraHelper = function($q, $cordovaCamera, $cordovaFile, $cordovaFileTransfer, $cordovaDevice, $cordovaActionSheet, Constants) {
+    var selectPictureType = function(type, q) {
         var options = {
             quality: 90,
             sourceType: type,
@@ -11,7 +11,7 @@ var CameraHelper = function ($q, $cordovaCamera, $cordovaFile, $cordovaFileTrans
             correctOrientation: true,
             saveToPhotoAlbum: false
         };
-        $cordovaCamera.getPicture(options).then(function (imagePath) {
+        $cordovaCamera.getPicture(options).then(function(imagePath) {
                 var currentName = imagePath.replace(/^.*[\\\/]/, '');
                 // Create a new name for the photo
                 var d = new Date(),
@@ -20,7 +20,7 @@ var CameraHelper = function ($q, $cordovaCamera, $cordovaFile, $cordovaFileTrans
 
                 // If you are trying to load image from the gallery on Android we need special treatment!
                 if ($cordovaDevice.getPlatform() === 'Android' && options.sourceType === Camera.PictureSourceType.PHOTOLIBRARY) {
-                    window.FilePath.resolveNativePath(imagePath, function (entry) {
+                    window.FilePath.resolveNativePath(imagePath, function(entry) {
                         window.resolveLocalFileSystemURL(entry, success, fail);
 
                         function fail(e) {
@@ -32,9 +32,9 @@ var CameraHelper = function ($q, $cordovaCamera, $cordovaFile, $cordovaFileTrans
                         function success(fileEntry) {
                             var namePath = fileEntry.nativeURL.substr(0, fileEntry.nativeURL.lastIndexOf('/') + 1);
                             // Only copy because of access rights
-                            $cordovaFile.copyFile(namePath, fileEntry.name, cordova.file.dataDirectory, newFileName).then(function (response) {
+                            $cordovaFile.copyFile(namePath, fileEntry.name, cordova.file.dataDirectory, newFileName).then(function(response) {
                                 q.resolve(response.nativeURL);
-                            }, function (error) {
+                            }, function(error) {
                                 console.log('Error', error);
                                 q.reject(error);
                             });
@@ -43,21 +43,21 @@ var CameraHelper = function ($q, $cordovaCamera, $cordovaFile, $cordovaFileTrans
                 } else {
                     var namePath = imagePath.substr(0, imagePath.lastIndexOf('/') + 1);
                     // Move the file to permanent storage
-                    $cordovaFile.moveFile(namePath, currentName, cordova.file.dataDirectory, newFileName).then(function (response) {
+                    $cordovaFile.moveFile(namePath, currentName, cordova.file.dataDirectory, newFileName).then(function(response) {
                         console.log("On Success", response.nativeURL);
                         q.resolve(response.nativeURL);
-                    }, function (error) {
+                    }, function(error) {
                         q.reject(error);
                         console.log('Error', error);
                     });
                 }
             },
-            function (err) {
+            function(err) {
                 // Not always an error, maybe cancel was pressed...
             });
     };
 
-    var getPicture = function () {
+    var getPicture = function() {
         var q = $q.defer();
         var options = {
             title: 'Select Image Source',
@@ -65,7 +65,7 @@ var CameraHelper = function ($q, $cordovaCamera, $cordovaFile, $cordovaFileTrans
             addCancelButtonWithLabel: "Cancel",
             androidEnableCancelButton: true
         };
-        $cordovaActionSheet.show(options).then(function (btnIndex) {
+        $cordovaActionSheet.show(options).then(function(btnIndex) {
             var type = null;
             switch (btnIndex) {
                 case 1:
@@ -82,7 +82,7 @@ var CameraHelper = function ($q, $cordovaCamera, $cordovaFile, $cordovaFileTrans
         return q.promise;
     };
     //options to use for picture loading
-    var uploadToServer = function (filePaths) {
+    var uploadToServer = function(filePaths) {
         var q = $q.defer();
         var url = Constants.baseUrl + 'api/upload';
         var options = {
@@ -91,21 +91,23 @@ var CameraHelper = function ($q, $cordovaCamera, $cordovaFile, $cordovaFileTrans
             mimeType: "multipart/form-data"
         };
         if (angular.isArray(filePaths)) {
-            console.log("isArray");
             var name = [];
-            angular.forEach(filePaths, function (path) {
-                $cordovaFileTransfer.upload(url, path, options).then(function (response) {
-                    name.push(response.response[0]);
-                    console.log(response.response);
-                }, function (error) {
+            var count = 0;
+            angular.forEach(filePaths, function(path) {
+                $cordovaFileTransfer.upload(url, path, options).then(function(response) {
+                    var result = JSON.parse(response.response)[0];
+                    name.push(result);
+                    count++;
+                    if (count == filePaths.length)
+                        q.resolve(name.join());
+                }, function(error) {
                     q.reject(error);
                 })
             });
-            q.resolve(name);
         } else {
-            $cordovaFileTransfer.upload(url, filePaths, options).then(function (response) {
+            $cordovaFileTransfer.upload(url, filePaths, options).then(function(response) {
                 q.resolve(JSON.parse(response.response));
-            }, function (error) {
+            }, function(error) {
                 q.reject(error);
             })
         }
